@@ -36,6 +36,31 @@ class JarInspectorTest {
         assertThrows(IOException.class, () -> JarInspector.inspect(jar));
     }
 
+    @Test void rejectsUnsafeArchiveEntryNamesDuringInspection() throws Exception {
+        Path jar = directory.resolve("unsafe.jar");
+        try (var output = new JarOutputStream(Files.newOutputStream(jar))) {
+            put(output, "../outside.txt", new byte[] {1});
+        }
+        assertThrows(IOException.class, () -> JarInspector.inspect(jar));
+    }
+
+    @Test void effectiveInspectionSelectsRequestedReleaseAndReportsPhysicalSource() throws Exception {
+        Path jar = directory.resolve("multi-release.jar");
+        var manifest = new java.util.jar.Manifest();
+        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
+        manifest.getMainAttributes().putValue("Multi-Release", "true");
+        try (var output = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            put(output, "META-INF/versions/21/example/Thing.class", classBytes("example/Thing"));
+            put(output, "example/Thing.class", classBytes("example/Thing"));
+        }
+        var base = JarInspector.inspectEffective(jar, 17);
+        var versioned = JarInspector.inspectEffective(jar, 21);
+        assertEquals("example/Thing.class", base.classes().getFirst().physicalName());
+        assertEquals("META-INF/versions/21/example/Thing.class", versioned.classes().getFirst().physicalName());
+        assertEquals("example/Thing.class", versioned.classes().getFirst().logicalName());
+        assertTrue(versioned.multiRelease());
+    }
+
     private static void put(JarOutputStream output, String name, byte[] bytes) throws IOException {
         output.putNextEntry(new JarEntry(name)); output.write(bytes); output.closeEntry();
     }

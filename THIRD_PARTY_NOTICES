@@ -1,0 +1,20 @@
+Third-party dependency inventory
+================================
+
+This file identifies the runtime dependencies resolved for Zartema's current Maven configuration on 2026-11-25. The ordinary Zartema project JAR does not bundle these libraries. The original copyright notices, license texts, NOTICE files and source-distribution terms of each dependency remain applicable when those dependencies are redistributed. This inventory is not a substitute for including all required upstream notices and licenses in a future bundled distribution. Build plugins and test-only dependencies are outside this runtime inventory.
+
+BSD-3-Clause: OW2 ASM 9.11.1 (asm, asm-util, asm-tree, asm-analysis, asm-commons). Upstream license: https://asm.ow2.io/license.html
+
+EPL-2.0: IBM WALA 1.8.0 (core, Shrike, util). Upstream license: https://github.com/wala/WALA/blob/v1.8.0/LICENSE
+
+LGPL-2.1-or-later: SootUp 3.0.1 (java.bytecode.frontend, interceptors, java.core, core, analysis.intraprocedural). Upstream license: https://github.com/soot-oss/SootUp/blob/v3.0.1/LICENSE ; source headers identify copyright holders and later-version permission, for example https://github.com/soot-oss/SootUp/blob/v3.0.1/sootup.core/src/main/java/sootup/core/model/SootClass.java .
+
+LGPL-2.1-or-later OR EPL-2.0: JGraphT core 1.5.3. Upstream license choice and attribution: https://github.com/jgrapht/jgrapht/blob/jgrapht-1.5.3/README.md
+
+Public Domain, as stated by upstream: org.json:json 20260522. Upstream statement: https://github.com/stleary/JSON-java/blob/20260522/LICENSE
+
+MIT: org.apfloat:apfloat 1.14.0 and org.slf4j:slf4j-api 2.0.18. Upstream sources: https://www.apfloat.org/apfloat_java/ and https://github.com/qos-ch/slf4j/tree/v_2.0.18
+
+Apache-2.0: org.jspecify:jspecify 1.0.0; com.google.code.gson:gson 2.14.0; com.google.errorprone:error_prone_annotations 2.48.0; com.google.guava:guava 33.6.0-jre; com.google.guava:failureaccess 1.0.3; com.google.guava:listenablefuture 9999.0-empty-to-avoid-conflict-with-guava; com.google.j2objc:j2objc-annotations 3.1; org.jheaps:jheaps 0.14; org.apache.commons:commons-text 1.15.0; commons-io:commons-io 2.22.0; org.apache.commons:commons-lang3 3.20.0. Apache license text: https://www.apache.org/licenses/LICENSE-2.0 . Refer to the corresponding artifact POMs and upstream distributions for their individual copyright and NOTICE files.
+
+JUnit Jupiter 5.11.4 is used for tests only and is distributed under EPL-2.0. The runtime graph and license review must be repeated whenever dependencies or distribution packaging change. Review of a future bundled or modified dependency distribution, including corresponding-source and relinking obligations where applicable, remains outstanding.
