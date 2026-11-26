@@ -16,6 +16,7 @@ import org.zartema.transform.PrivateMethodRenamer;
 import org.zartema.transform.keep.KeepRuleSet;
 import org.zartema.workflow.AnalysisAwareRenamer;
 import org.zartema.verify.JvmJarLoadVerifier;
+import org.zartema.analysis.AnalysisSnapshotCoordinator;
 
 /** Command-line entry point. */
 public final class Main {
@@ -33,6 +34,27 @@ public final class Main {
     }
 
     static int run(String[] args) {
+        if (args.length == 3 && args[0].equals("analyze-release")) {
+            try {
+                var result = AnalysisSnapshotCoordinator.analyzeRelease(Path.of(args[1]), Integer.parseInt(args[2]));
+                var report = result.selectedClasses();
+                System.out.printf("Release: %d; scope: classpath, running JDK, no application dependencies%n", result.targetRelease());
+                System.out.printf("Physical snapshot SHA-256: %s%nSelected classes SHA-256: %s%n",
+                        result.physicalSnapshotSha256(), report.snapshotSha256());
+                System.out.printf("JDK: %s %s; module image SHA-256: %s%n",
+                        result.runtimeVendor(), result.runtimeVersion(), result.runtimeImageSha256());
+                System.out.printf("WALA classes: %d; SootUp classes: %d%n",
+                        report.wala().applicationClasses().size(), report.sootUp().classCount());
+                System.out.printf("Only WALA: %s%nOnly SootUp: %s%nAmbiguous identities: %s%n",
+                        report.classesOnlyInWala(), report.classesOnlyInSootUp(), report.ambiguousClassIdentities());
+                System.out.printf("Unresolved WALA types: %s%nMissing hierarchy references: %s%nHierarchy disagreements: %s%n",
+                        report.unresolvedWalaTypes(), report.missingHierarchyReferences(), report.hierarchyDisagreements());
+                return 0;
+            } catch (IOException | IllegalArgumentException exception) {
+                System.err.println("Release analysis failed: " + exception.getMessage());
+                return 1;
+            }
+        }
         if (args.length > 0 && args[0].equals("inspect") && (args.length == 2
                 || args.length == 4 && args[2].equals("--release"))) {
             try {

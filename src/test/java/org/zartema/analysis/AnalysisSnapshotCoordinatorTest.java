@@ -72,6 +72,35 @@ class AnalysisSnapshotCoordinatorTest {
         assertTrue(error.getMessage().contains("limit"), error.getMessage());
     }
 
+    @Test
+    void analyzesSelectedReleaseClassBytesWithBothLibraries() throws Exception {
+        int release = Runtime.version().feature();
+        Path jar = directory.resolve("release.jar");
+        var manifest = new java.util.jar.Manifest();
+        manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
+        manifest.getMainAttributes().putValue("Multi-Release", "true");
+        try (var output = new JarOutputStream(Files.newOutputStream(jar), manifest)) {
+            put(output, "sample/Base.class", classBytes("sample/Base", "java/lang/Object", null));
+            put(output, "sample/Child.class", classBytes("sample/Child", "java/lang/Object", null));
+            put(output, "META-INF/versions/" + release + "/sample/Child.class",
+                    classBytes("sample/Child", "sample/Base", null));
+        }
+        var result = AnalysisSnapshotCoordinator.analyzeRelease(jar, release);
+        assertEquals(release, result.targetRelease());
+        assertEquals(64, result.physicalSnapshotSha256().length());
+        assertEquals(64, result.runtimeImageSha256().length());
+        assertEquals(System.getProperty("java.runtime.version"), result.runtimeVersion());
+        assertEquals(System.getProperty("java.vendor"), result.runtimeVendor());
+        var report = result.selectedClasses();
+        assertTrue(report.sootUp().classes().stream().anyMatch(type -> type.internalName().equals("sample/Child")
+                && "sample/Base".equals(type.superclassInternalName())));
+        assertTrue(report.wala().applicationClasses().stream().anyMatch(type -> type.internalName().equals("sample/Child")
+                && "sample/Base".equals(type.superclassInternalName())));
+        assertTrue(report.hierarchyDisagreements().isEmpty());
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> AnalysisSnapshotCoordinator.analyzeRelease(jar, release - 1));
+    }
+
     private static void put(JarOutputStream output, String name, byte[] bytes) throws IOException {
         output.putNextEntry(new JarEntry(name));
         output.write(bytes);

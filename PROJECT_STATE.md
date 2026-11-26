@@ -5,7 +5,7 @@ Last updated: 2026-11-25. This is an early implementation, not a release. The cu
 ## Implemented
 
 - Java 21 Maven project with ASM 9.11.1, WALA 1.8.0, and SootUp 3.0.1 dependencies; ASM class-header inspection of physical JAR entries; results are sorted by entry name.
-- CLI `inspect` (physical or explicit release-selected logical classpath view) and experimental `rename-private-static` commands. Renaming requires selected method identities, a mapping destination and an explicit closed-world/name-use acknowledgment; it refuses existing destinations.
+- CLI `inspect` (physical or explicit release-selected logical classpath view), `analyze-release`, and experimental `rename-private-static` commands. `analyze-release` feeds both libraries the same class-only selected view, only for the running JDK release; it rejects selected module descriptors and has no application dependencies. Renaming requires selected method identities, a mapping destination and an explicit closed-world/name-use acknowledgment; it refuses existing destinations.
 - WALA hierarchy adapter for a single non-versioned JAR, running JDK libraries and three-valued assignability; SootUp adapter reports Jimple/CFG metrics for a single non-versioned JAR. Neither takes application dependencies; the analysis-aware workflow consumes their facts as conservative rename vetoes.
 - Bounded physical JAR ingestion used by inspection and renaming, and deterministic ZIP32 output, plus signature/digest mutation guards. Archive entry payloads are preserved; ZIP metadata is normalized. Entry payload copies were reduced and output verification streams, but the whole pipeline working set and available heap remain unbounded by the payload limit.
 - ASM class checks, explicit-byte hierarchy lookup, an opt-in private static method renamer, deterministic mapping serialization, and stack-frame translation. The pass rejects versioned inputs, custom attributes, incomplete nests and unresolved symbolic-owner matches. Mapping translation requires complete inventories and rejects known ambiguous names.
@@ -13,7 +13,7 @@ Last updated: 2026-11-25. This is an early implementation, not a release. The cu
 
 ## Validation actually performed
 
-- JDK 21 `mvn -o -B clean verify` passed 92 tests and built the project JAR. The packaged `META-INF/LICENSE` and `META-INF/THIRD_PARTY_NOTICES` match the repository files byte for byte. This was a clean build in the current worktree, not a clean-checkout reproducibility test.
+- JDK 21 `mvn -o -B clean verify` passed 94 tests after adding release-specific analysis and built the project JAR. The packaged `META-INF/LICENSE` and `META-INF/THIRD_PARTY_NOTICES` match the repository files byte for byte. This was a clean build in the current worktree, not a clean-checkout reproducibility test.
 
 - JDK 21: `mvn -B -Dmaven.repo.local=/tmp/zartema-m2 package`: 10 tests passed and the JAR was built on 2026-11-25.
 - An initial test compilation failed as expected because the inspector had not yet been implemented. A separate initial Maven attempt failed because the default local repository lock directory was not writable; a temporary repository was used. A subsequent sandbox DNS failure was resolved by running the authorized build with network access.
@@ -29,6 +29,8 @@ Last updated: 2026-11-25. This is an early implementation, not a release. The cu
 
 - JDK 21 targeted runs passed 31 verifier/CLI/release-view tests and 13 inspector/release-view tests, including version-before-base order, JDK selection cross-checks and an executed Java 21 fixture. These runs do not validate multi-release transformation.
 
+- JDK 21 `mvn -o -B -Dtest=AnalysisSnapshotCoordinatorTest,CliTest#analyzeReleaseCommandReportsActualLibraryFacts test` passed 5 tests, including both libraries observing a versioned class with the expected superclass. The path was subsequently included in a 94-test clean build; a focused CLI rerun passed after the diagnostic text change. This new work is not yet published or on CI.
+
 ## Outstanding
 
 - Independent verifier review identified stage-file verification/publication races; bounded verifier inputs and child heap/metaspace, plus a distinct older-target failure, are implemented and tested. Input/output staged digests are now rechecked after JVM loading, and unsafe mapping rollback was removed; these edits need integrated tests and still do not eliminate all same-directory races. The CLI currently supports only self-contained application JARs and its loader check does not establish complete linkage.
@@ -37,6 +39,10 @@ Last updated: 2026-11-25. This is an early implementation, not a release. The cu
 - Analysis coordinator inventory now uses the archive reader's decompressed-payload limits; a focused three-test run passed. Its staging disk usage, whole-analysis memory and runtime limits remain unbounded.
 - The runtime dependency graph and upstream license metadata have been inventoried in `THIRD_PARTY_NOTICES`; the specialist inspected packaged runtime artifact notices and found the thin JAR embeds no dependency code. Complete notices and applicable source/relinking obligations for any future bundled distribution remain open. The thin JAR includes verified copies of the project license and inventory. Clean-checkout reproducibility, comprehensive compatibility testing, benchmarking, independent final audit, and CI inspection remain open.
 - GitHub publication and CI results must be verified separately for each milestone.
+
+## Publication
+
+- Commit `afc5141` was pushed to the authorized `main` branch after the 92-test JDK 21 clean build and staged-content hygiene checks. GitHub Actions run 45737535724 completed successfully for commit `afc5141d9039e17947497ab2ae120250f0419afb` (observed with `gh run view`). An unrelated untracked archive is not part of the commit.
 
 ## Next steps
 

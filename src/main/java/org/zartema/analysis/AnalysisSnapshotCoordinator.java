@@ -17,6 +17,7 @@ import java.util.TreeSet;
 import org.objectweb.asm.ClassReader;
 import org.zartema.analysis.wala.WalaHierarchyAnalyzer;
 import org.zartema.archive.JarArchive;
+import org.zartema.archive.MultiReleaseJarView;
 
 /**
  * Runs WALA and SootUp against the same staged, non-versioned JAR snapshot and compares
@@ -29,6 +30,59 @@ public final class AnalysisSnapshotCoordinator {
     public record HierarchyDifference(String internalName, List<String> differences) {
         public HierarchyDifference {
             differences = List.copyOf(differences);
+        }
+    }
+
+    /** Analysis of selected class bytes only; the physical artifact remains the emission authority. */
+    public record ReleaseReport(int targetRelease, String physicalSnapshotSha256, String runtimeVersion,
+                                String runtimeVendor, String runtimeImageSha256, Report selectedClasses) { }
+
+    /**
+     * Analyzes a logical classpath view against the running JDK and no application dependencies.
+     * The target must match the running JDK because the platform model is not release-specific.
+     * Resources and module descriptors are not analyzed; modular input is rejected.
+     */
+    public static ReleaseReport analyzeRelease(Path inputJar, int targetRelease) throws IOException {
+        if (targetRelease != Runtime.version().feature())
+            throw new IllegalArgumentException("Target release must match the running JDK for platform analysis");
+        Path runtimeImage = Path.of(System.getProperty("java.home"), "lib", "modules");
+        if (!Files.isRegularFile(runtimeImage)) throw new IOException("Running JDK module image is unavailable");
+        String runtimeDigest = sha256(runtimeImage);
+        JarArchive archive = JarArchive.read(inputJar);
+        var view = MultiReleaseJarView.select(archive, targetRelease);
+        Path directory = Files.createTempDirectory("zartema-release-analysis-");
+        Path physical = directory.resolve("physical.jar");
+        Path selected = directory.resolve("selected.jar");
+        try {
+            archive.writeDeterministic(physical);
+            try (var output = new java.util.zip.ZipOutputStream(Files.newOutputStream(selected))) {
+                for (var entry : view.entries()) {
+                    String name = entry.logicalName();
+                    if (!name.endsWith(".class") || name.startsWith("META-INF/")) continue;
+                    if (name.equals("module-info.class"))
+                        throw new IOException("Module descriptors are unsupported by release analysis");
+                    byte[] bytes = entry.entry().content();
+                    try {
+                        if (!new ClassReader(bytes).getClassName().equals(name.substring(0, name.length() - 6)))
+                            throw new IOException("Class name does not match logical path: " + name);
+                    } catch (RuntimeException exception) {
+                        throw new IOException("Cannot parse selected class: " + name, exception);
+                    }
+                    var zipEntry = new java.util.zip.ZipEntry(name);
+                    zipEntry.setTime(0);
+                    output.putNextEntry(zipEntry);
+                    output.write(bytes);
+                    output.closeEntry();
+                }
+            }
+            Report report = analyze(selected);
+            if (!runtimeDigest.equals(sha256(runtimeImage))) throw new IOException("Running JDK image changed during analysis");
+            return new ReleaseReport(targetRelease, sha256(physical), System.getProperty("java.runtime.version"),
+                    System.getProperty("java.vendor"), runtimeDigest, report);
+        } finally {
+            Files.deleteIfExists(selected);
+            Files.deleteIfExists(physical);
+            Files.deleteIfExists(directory);
         }
     }
 

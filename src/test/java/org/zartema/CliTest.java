@@ -156,6 +156,17 @@ class CliTest {
     }
 
     @Test
+    void analyzeReleaseCommandReportsActualLibraryFacts() throws Exception {
+        ProcessResult result = launch("analyze-release", fixtureJar("analyze-release.jar").toString(),
+                Integer.toString(Runtime.version().feature()));
+        assertEquals(0, result.exitCode, result.output);
+        assertTrue(result.output.contains("WALA classes: 1; SootUp classes: 1"), result.output);
+        assertTrue(result.output.contains("Selected classes SHA-256:"), result.output);
+        assertTrue(result.output.contains("Unresolved WALA types:"), result.output);
+        assertTrue(result.output.contains("Only SootUp:"), result.output);
+    }
+
+    @Test
     void requiresAcknowledgmentSelectorAndMappingAndDoesNotPublishPartialOutput() throws Exception {
         Path input = fixtureJar("input.jar");
         Path output = directory.resolve("output.jar");
